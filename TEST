@@ -1,0 +1,54 @@
+from ultralytics import YOLO
+import cv2
+
+# 1. โหลดโมเดลที่เราเทรนมา (ตรวจสอบชื่อไฟล์ให้ตรงกับที่โหลดมานะครับ)
+model = YOLO(r'f:\New folder\best (2).pt')
+
+# 2. เปิดกล้อง Webcam (เลข 0 คือกล้องหลักของเครื่อง)
+cap = cv2.VideoCapture(0)
+
+print("กำลังรัน AI... กดปุ่ม 'q' บนคีย์บอร์ดเพื่อเลิกใช้งาน")
+
+while cap.isOpened():
+    # อ่านภาพจากกล้อง
+    success, frame = cap.read()
+
+    if success:
+        # 3. ให้ AI ทำนายวัตถุในภาพ
+        # conf=0.25 คือให้แสดงผลเฉพาะสิ่งที่ AI มั่นใจเกิน 25% (ปรับให้ลดลงเพื่อให้เจอต่อเนื่องขึ้น)
+        results = model(frame, conf=0.25)
+
+        # 4. วาดกรอบและแสดงผลบนหน้าจอ
+        annotated_frame = results[0].plot()
+
+        # 5. คำนวณจุดกึ่งกลาง (สำหรับส่งให้ UR3 ในอนาคต)
+        for r in results:
+            boxes = r.boxes
+            for box in boxes:
+                # พิกัดกรอบ [x1, y1, x2, y2]
+                b = box.xyxy[0] 
+                c = box.cls
+                
+                # คำนวณจุดกึ่งกลาง
+                center_x = int((b[0] + b[2]) / 2)
+                center_y = int((b[1] + b[3]) / 2)
+                
+                # เขียนข้อความบอกพิกัดบนจอ
+                cv2.putText(annotated_frame, f"Center: {center_x}, {center_y}", 
+                            (center_x, center_y), cv2.FONT_HERSHEY_SIMPLEX, 
+                            0.6, (0, 255, 0), 2)
+                
+                print(f"พบกล่องที่พิกัดพิกเซล: X={center_x}, Y={center_y}")
+
+        # แสดงหน้าต่างวิดีโอ
+        cv2.imshow("UR3 Vision System - YOLOv8", annotated_frame)
+
+        # กด 'q' เพื่อออกจากโปรแกรม
+        if cv2.waitKey(1) & 0xFF == ord("q"):
+            break
+    else:
+        break
+
+# ปิดกล้องและคืนหน่วยความจำ
+cap.release()
+cv2.destroyAllWindows()
